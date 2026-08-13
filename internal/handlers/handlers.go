@@ -99,9 +99,9 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-// ListMarks returns marks, optionally filtered by kind.
+// ListMarks returns marks, optionally filtered by kind and search query q (name or slug).
 func (h *Handler) ListMarks(c *gin.Context) {
-	out, err := h.marks.List(c.Request.Context(), c.Query("kind"))
+	out, err := h.marks.List(c.Request.Context(), c.Query("kind"), c.Query("q"))
 	if err != nil {
 		markHTTPError(c, err)
 		return

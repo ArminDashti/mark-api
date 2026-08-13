@@ -24,12 +24,14 @@ JWT except login and public image routes.
 |--------|------|------|
 | GET | `/health` | no |
 | POST | `/api/v1/auth/login` | no |
-| GET | `/api/v1/marks?kind=` | yes |
+| GET | `/api/v1/marks?kind=&q=` | yes |
 | POST | `/api/v1/marks` | yes (multipart) |
 | PUT | `/api/v1/marks/:id` | yes |
 | DELETE | `/api/v1/marks/:id` | yes |
 
 Multipart fields: `file`, `name`, `slug`, `kind`.
+
+`q` is an optional case-insensitive search on `name` and `slug` (max 64 characters).
 
 ## Local run
 

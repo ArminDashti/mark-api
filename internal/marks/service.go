@@ -45,13 +45,17 @@ func NewService(store *Store, disk *storage.Disk, dataDir string) *Service {
 	return &Service{store: store, disk: disk, dataDir: dataDir}
 }
 
-// List returns marks for a kind (or all).
-func (s *Service) List(ctx context.Context, kind string) ([]models.Mark, error) {
+// List returns marks for a kind (or all), optionally matching name or slug.
+func (s *Service) List(ctx context.Context, kind, q string) ([]models.Mark, error) {
 	kind, err := optionalKind(kind)
 	if err != nil {
 		return nil, err
 	}
-	return s.store.List(ctx, kind)
+	q = strings.TrimSpace(q)
+	if len(q) > 64 {
+		return nil, fmt.Errorf("search query is too long")
+	}
+	return s.store.List(ctx, kind, q)
 }
 
 // Get returns a mark by id.

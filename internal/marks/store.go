@@ -62,18 +62,32 @@ func (s *Store) GetByKindSlug(ctx context.Context, kind, slug string) (*models.M
 	return m, err
 }
 
-// List returns marks, optionally filtered by kind, newest first.
-func (s *Store) List(ctx context.Context, kind string) ([]models.Mark, error) {
+// List returns marks, optionally filtered by kind and a name/slug search, newest first.
+func (s *Store) List(ctx context.Context, kind, q string) ([]models.Mark, error) {
 	var (
 		rows *sql.Rows
 		err  error
 	)
-	if kind == "" {
+	like := likeContains(q)
+	switch {
+	case kind == "" && q == "":
 		rows, err = s.db.QueryContext(ctx, `SELECT `+markCols+` FROM marks ORDER BY updated_at DESC`)
-	} else {
+	case kind != "" && q == "":
 		rows, err = s.db.QueryContext(ctx, `
 			SELECT `+markCols+` FROM marks WHERE kind = $1 ORDER BY updated_at DESC
 		`, kind)
+	case kind == "" && q != "":
+		rows, err = s.db.QueryContext(ctx, `
+			SELECT `+markCols+` FROM marks
+			WHERE name ILIKE $1 ESCAPE '\' OR slug ILIKE $1 ESCAPE '\'
+			ORDER BY updated_at DESC
+		`, like)
+	default:
+		rows, err = s.db.QueryContext(ctx, `
+			SELECT `+markCols+` FROM marks
+			WHERE kind = $1 AND (name ILIKE $2 ESCAPE '\' OR slug ILIKE $2 ESCAPE '\')
+			ORDER BY updated_at DESC
+		`, kind, like)
 	}
 	if err != nil {
 		return nil, err
@@ -142,6 +156,12 @@ func (s *Store) Delete(ctx context.Context, id string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func likeContains(q string) string {
+	q = strings.TrimSpace(q)
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + replacer.Replace(q) + "%"
 }
 
 func wrapConflict(err error) error {
