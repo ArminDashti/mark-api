@@ -1,0 +1,22 @@
+# Local dev: Postgres only (API via `go run ./cmd/server`).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mark-postgres
+    environment:
+      POSTGRES_USER: mark
+      POSTGRES_PASSWORD: mark
+      POSTGRES_DB: mark
+    ports:
+      - "5437:5432"
+    volumes:
+      - mark_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mark -d mark"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mark_pgdata:

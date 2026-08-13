@@ -1,0 +1,9 @@
+*.exe
+*.EXE
+bin/
+.env
+.armin/
+.cursor/
+*.log
+data/originals/
+data/cache/
