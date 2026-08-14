@@ -1,0 +1,54 @@
+name: mark
+
+services:
+  mark-pgsql:
+    image: postgres:16-alpine
+    container_name: mark-pgsql
+    environment:
+      POSTGRES_USER: mark
+      POSTGRES_PASSWORD: mark
+      POSTGRES_DB: mark
+    volumes:
+      - mark-pgsql-vol:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    networks:
+      - t3-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mark -d mark"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mark-api:
+    image: ${IMAGE_TAG:-mark-api:latest}
+    container_name: mark-api
+    expose:
+      - "8130"
+    environment:
+      ADDR: ":8130"
+      DATABASE_URL: postgres://mark:mark@mark-pgsql:5432/mark?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-3a8f27d77689be38dad547e2d589375289eff103bfa103c6}
+      MIGRATIONS_DIR: /app/migrations
+      DATA_DIR: /data
+      GIN_MODE: release
+    volumes:
+      - mark-api-vol:/data
+    networks:
+      - t3-net
+    depends_on:
+      mark-pgsql:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  t3-net:
+    name: ${DOCKER_NETWORK:-t3-net}
+    external: true
+
+volumes:
+  mark-pgsql-vol:
+    name: mark-pgsql-vol
+  mark-api-vol:
+    name: mark-api-vol

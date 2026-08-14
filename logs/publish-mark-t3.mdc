@@ -1,0 +1,40 @@
+# Publish mark-api + mark-ui on Irancell-T3
+
+Date: 2026-08-13
+
+## Stacks
+
+| Stack | Domain | Backend | Image |
+|-------|--------|---------|-------|
+| mark | mark-api.xaigrok.ir | mark-api:8130 | mark-api:latest |
+| mark-ui | mark.xaigrok.ir | mark-ui:80 | mark-ui:latest |
+
+## Deploy
+
+- Packaged both repos (Dockerfile, compose, `.armin/docker-scripts/`)
+- API image built locally and loaded on T3; first `compose up` failed with `resource temporarily unavailable`
+- Cause: `kernel.threads-max` was 24426 and the host had ~24397 threads, mostly ~22398 zombie `timeout` processes under SoftEther `vpnserver` in `mullvad-1`
+- Runtime fix (no VPN restart): `sudo sysctl -w kernel.threads-max=131072`
+- Then `docker start mark-api` succeeded; `/health` → `{"status":"ok"}`
+- UI image built locally, uploaded, compose started on `t3-net` (`mark-ui` Up)
+- HAProxy SNI + Host routes added; `docker kill -s HUP haproxy`
+- Certbot deploy hook extended for `mark.xaigrok.ir` and `mark-api.xaigrok.ir` (SAN mirror)
+
+## TLS (Let's Encrypt)
+
+- **Not issued.** Public DNS is still NXDOMAIN for both names
+- Authoritative NS for `xaigrok.ir`: `ns1`–`ns6.irancellcloud.com`
+- `lexmora.xaigrok.ir` still resolves to `2.144.27.74`
+- Live SNI for `mark.xaigrok.ir` currently presents an unrelated cert (`CN=aipedia.xaigrok.ir`) until LE PEMs exist
+- SoftEther `ovpbackup.xaigrok.ir` passthrough OK (`CN=d27332175071`)
+
+## Verify (via `--resolve` to 127.0.0.1)
+
+- `https://mark.xaigrok.ir/` → 200 (HTML)
+- `https://mark-api.xaigrok.ir/health` → 200 `{"status":"ok"}`
+
+## Warnings
+
+- Let's Encrypt HTTP-01 cannot run until A records `mark` and `mark-api` → `2.144.27.74` exist on Irancell Cloud DNS
+- SoftEther zombie `timeout` leak will fill `threads-max` again; `kernel.threads-max` raise is runtime-only (lost on reboot)
+- Do not restart `mullvad-1` / SoftEther without explicit approval (VPN users)
