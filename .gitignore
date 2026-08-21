@@ -11,3 +11,5 @@ data/cache/
 # BEGIN AUTO-MANAGED LARGE FILES (>5MB)
 # END AUTO-MANAGED LARGE FILES
 .tmp-logos/
+
+# AUTO-IGNORE-LARGE-FILES (>5MB) â€” managed by github-commit-push-all
