@@ -1,22 +1,82 @@
-# Local dev: Postgres only (API via `go run ./cmd/server`).
+# Local Docker hot-reload: Postgres + Go Air API + Vite WebUI (bind mounts).
+# Usage: docker compose -f docker-compose.local.yml -p mark-local up -d --force-recreate
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: mark-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: mark
       POSTGRES_PASSWORD: mark
       POSTGRES_DB: mark
     ports:
-      - "5437:5432"
+      - "5439:5432"
     volumes:
-      - mark_pgdata:/var/lib/postgresql/data
+      - mark-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mark -d mark"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 10
+
+  api:
+    image: golang:1.25-alpine
     restart: unless-stopped
+    working_dir: /app
+    environment:
+      ADDR: "0.0.0.0:8130"
+      DATABASE_URL: postgres://mark:mark@postgres:5432/mark?sslmode=disable
+      JWT_SECRET: change-me-mark-jwt
+      DATA_DIR: /app/data
+      MIGRATIONS_DIR: migrations
+      GIN_MODE: debug
+      GOTOOLCHAIN: auto
+    command:
+      - sh
+      - -c
+      - apk add --no-cache git gcc musl-dev && go install github.com/air-verse/air@v1.61.7 && air -c .air.toml
+    volumes:
+      - .:/app
+      - mark-gomod:/go/pkg/mod
+      - mark-gotmp:/app/tmp
+      - mark-data:/app/data
+    ports:
+      - "8180:8130"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  webui:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_BASE_PATH: "/mark/"
+      VITE_HMR_CLIENT_PORT: "80"
+      WATCHPACK_POLLING: "true"
+      VITE_API_PROXY: http://api:8130
+    command:
+      - sh
+      - -c
+      - rm -rf /app/node_modules/* /app/node_modules/.[!.]* 2>/dev/null; npm install && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
+    volumes:
+      - ../mark-ui:/app
+      - mark-webui-node-modules:/app/node_modules
+    ports:
+      - "5182:5173"
+    networks:
+      - default
+      - pc-armin-local
+    depends_on:
+      - api
 
 volumes:
-  mark_pgdata:
+  mark-postgres-data:
+  mark-gomod:
+  mark-gotmp:
+  mark-data:
+  mark-webui-node-modules:
+
+networks:
+  pc-armin-local:
+    external: true
